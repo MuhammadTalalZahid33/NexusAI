@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.graph import run_agent
 from app.db.session import get_session
 from app.documents.deps import get_current_org_id
+from app.observability.metrics import REGISTRY, track_latency
 from app.retrieval.rag import answer_question
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -51,12 +52,16 @@ async def ask(
     session: AsyncSession = Depends(get_session),
 ) -> AskResponse:
     org_id = await get_current_org_id(session)
-    if body.agentic:
-        result = await run_agent(session, org_id, body.question, top_k=body.top_k)
-    else:
-        result = await answer_question(
-            session, org_id, body.question, top_k=body.top_k, strategy=body.strategy
-        )
+    REGISTRY.incr("chat.requests")
+    with track_latency("chat.answer"):
+        if body.agentic:
+            result = await run_agent(session, org_id, body.question, top_k=body.top_k)
+        else:
+            result = await answer_question(
+                session, org_id, body.question, top_k=body.top_k, strategy=body.strategy
+            )
+    if result.abstained:
+        REGISTRY.incr("chat.abstained")
     return AskResponse(
         answer=result.answer,
         abstained=result.abstained,

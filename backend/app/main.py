@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings, get_settings
 from app.logging_config import configure_logging, get_logger
-from app.routers import chat, documents, health
+from app.routers import chat, documents, health, metrics
 
 log = get_logger(__name__)
 
@@ -85,6 +85,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(documents.router)
     app.include_router(chat.router)
+    app.include_router(metrics.router)
     return app
 
 
