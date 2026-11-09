@@ -1,83 +1,42 @@
-import { useEffect, useState } from "react";
+import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import "./App.css";
-import { ApiError, API_BASE_URL, getHealth, type HealthResponse } from "./api/client";
+import { useAuth } from "./auth/AuthContext";
+import { ChatPage } from "./pages/ChatPage";
+import { DocumentsPage } from "./pages/DocumentsPage";
+import { LoginPage } from "./pages/LoginPage";
 
-type Status = "loading" | "ok" | "error";
-
-function App() {
-  const [status, setStatus] = useState<Status>("loading");
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function checkHealth() {
-    setStatus("loading");
-    setError(null);
-    try {
-      const result = await getHealth();
-      setHealth(result);
-      setStatus("ok");
-    } catch (err) {
-      const message = err instanceof ApiError ? err.message : "Unexpected error.";
-      setError(message);
-      setStatus("error");
-    }
-  }
-
-  // Check backend health once on mount.
-  useEffect(() => {
-    void checkHealth();
-  }, []);
-
+function Shell() {
+  const { user, logout } = useAuth();
   return (
-    <main className="app">
-      <header className="app__header">
-        <h1 className="app__title">Nexus AI</h1>
-        <p className="app__subtitle">Agentic RAG Knowledge Intelligence Platform</p>
-      </header>
-
-      <section className="card" aria-live="polite">
-        <div className="card__row">
-          <span className="card__label">Backend status</span>
-          <StatusBadge status={status} />
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="sidebar__logo">Nexus AI</div>
+        <nav className="sidebar__nav">
+          <NavLink to="/" end>Ask</NavLink>
+          <NavLink to="/documents">Documents</NavLink>
+        </nav>
+        <div className="sidebar__foot">
+          <div className="sidebar__user">{user?.email}</div>
+          <div className="sidebar__org">{user?.role}</div>
+          <button className="btn btn--ghost" onClick={logout}>Sign out</button>
         </div>
-
-        {status === "ok" && health && (
-          <dl className="card__meta">
-            <div>
-              <dt>Environment</dt>
-              <dd>{health.app_env}</dd>
-            </div>
-            <div>
-              <dt>Version</dt>
-              <dd>{health.version}</dd>
-            </div>
-          </dl>
-        )}
-
-        {status === "error" && (
-          <p className="card__error" role="alert">
-            {error}
-          </p>
-        )}
-
-        <div className="card__footer">
-          <span className="card__api">{API_BASE_URL}</span>
-          <button className="btn" type="button" onClick={() => void checkHealth()}>
-            Re-check
-          </button>
-        </div>
-      </section>
-
-      <footer className="app__footer">
-        <p>Milestone 1 &middot; project foundation</p>
-      </footer>
-    </main>
+      </aside>
+      <main className="content">
+        <Routes>
+          <Route path="/" element={<ChatPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </div>
   );
 }
 
-function StatusBadge({ status }: { status: Status }) {
-  const label = status === "loading" ? "Checking..." : status === "ok" ? "Healthy" : "Unreachable";
-  return <span className={`badge badge--${status}`}>{label}</span>;
+function App() {
+  const { token, loading } = useAuth();
+  if (loading) return <div className="loading-screen">Loading…</div>;
+  if (!token) return <LoginPage />;
+  return <Shell />;
 }
 
 export default App;

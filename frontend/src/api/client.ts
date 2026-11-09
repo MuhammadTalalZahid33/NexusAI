@@ -1,60 +1,131 @@
 /**
- * Central API client for talking to the Nexus AI backend.
+ * Central API client for the Nexus AI backend.
  *
- * Everything that calls the backend goes through this module. Keeping it in
- * one place means auth headers, error handling, and the base URL are defined
- * once -- when we add login, uploads, and chat, they extend this file rather
- * than scattering fetch() calls across components.
+ * All backend calls go through here. A module-level token holder lets us attach
+ * the JWT to every request after login, and a single error type keeps error
+ * handling consistent across the app.
  */
 
-// Vite exposes env vars prefixed with VITE_ on import.meta.env.
-// We fall back to the local backend if nothing is configured.
-const API_BASE_URL: string =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-/** Shape of the backend /health response (mirrors the Pydantic model). */
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null): void {
+  authToken = token;
+}
+
+export class ApiError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers);
+  if (authToken) headers.set("Authorization", `Bearer ${authToken}`);
+  if (!(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+  headers.set("Accept", "application/json");
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  } catch {
+    throw new ApiError(0, "Could not reach the backend. Is it running?");
+  }
+
+  if (response.status === 204) return undefined as T;
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = (data as { detail?: string }).detail ?? `Request failed (${response.status}).`;
+    throw new ApiError(response.status, detail);
+  }
+  return data as T;
+}
+
+// ---- Types ----
 export interface HealthResponse {
   status: string;
   app_env: string;
   version: string;
 }
-
-/** Thrown when the backend responds but with a non-2xx status. */
-export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+}
+export interface Me {
+  user_id: string;
+  org_id: string;
+  email: string;
+  role: string;
+}
+export type DocumentStatus = "pending" | "processing" | "ready" | "failed";
+export interface DocumentOut {
+  id: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  status: DocumentStatus;
+  error: string | null;
+  page_count: number | null;
+  chunk_count: number;
+  created_at: string;
+}
+export interface Citation {
+  marker: number;
+  chunk_id: string;
+  document_id: string;
+  filename: string;
+  page_number: number | null;
+  text: string;
+}
+export interface AskResponse {
+  answer: string;
+  abstained: boolean;
+  citations: Citation[];
 }
 
-/**
- * Low-level JSON GET helper. Centralizes URL building and error handling so
- * every endpoint behaves consistently.
- */
-async function getJson<T>(path: string): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      headers: { Accept: "application/json" },
-    });
-  } catch (cause) {
-    // Network-level failure (backend down, DNS, CORS preflight blocked, ...).
-    throw new ApiError(0, "Could not reach the backend. Is it running?");
-  }
+// ---- Endpoints ----
+export const api = {
+  health: () => request<HealthResponse>("/health"),
 
-  if (!response.ok) {
-    throw new ApiError(response.status, `Request failed (${response.status}).`);
-  }
+  register: (email: string, password: string, organization_name: string) =>
+    request<TokenResponse>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password, organization_name }),
+    }),
 
-  return (await response.json()) as T;
-}
+  login: (email: string, password: string) =>
+    request<TokenResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
 
-/** Fetch the backend liveness status. */
-export function getHealth(): Promise<HealthResponse> {
-  return getJson<HealthResponse>("/health");
-}
+  me: () => request<Me>("/auth/me"),
+
+  listDocuments: () =>
+    request<{ documents: DocumentOut[] }>("/documents").then((r) => r.documents),
+
+  getDocument: (id: string) => request<DocumentOut>(`/documents/${id}`),
+
+  uploadDocument: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<DocumentOut>("/documents", { method: "POST", body: form });
+  },
+
+  deleteDocument: (id: string) => request<void>(`/documents/${id}`, { method: "DELETE" }),
+
+  ask: (question: string, opts?: { top_k?: number; strategy?: string; agentic?: boolean }) =>
+    request<AskResponse>("/chat", {
+      method: "POST",
+      body: JSON.stringify({ question, ...opts }),
+    }),
+};
 
 export { API_BASE_URL };
