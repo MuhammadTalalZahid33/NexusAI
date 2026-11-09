@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115,<1.0",
     "uvicorn[standard]>=0.32,<1.0",
-    "pydantic>=2.9,<3.0",
+    "pydantic[email]>=2.9,<3.0",
     "pydantic-settings>=2.6,<3.0",
     "structlog>=24.4",
     "sqlalchemy>=2.0,<2.1",
@@ -21,6 +21,9 @@ dependencies = [
     "google-genai>=1.0",
     "cohere>=5.13",
     "langgraph>=0.2.50",
+    "pyjwt>=2.10",
+    "bcrypt>=4.2",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]
@@ -53,3 +56,6 @@ ignore = ["B008", "UP042"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+markers = [
+    "integration: tests that require a live database (DATABASE_URL).",
+]

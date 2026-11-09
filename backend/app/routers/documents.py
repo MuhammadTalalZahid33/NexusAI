@@ -12,11 +12,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFi
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import Principal, get_current_principal
 from app.config import Settings, get_settings
 from app.db.models import Document, DocumentStatus
 from app.db.session import get_session, get_sessionmaker
 from app.documents import storage
-from app.documents.deps import get_current_org_id
 from app.documents.ingestion import ingest_document
 from app.documents.schemas import DocumentListOut, DocumentOut
 
@@ -33,6 +33,7 @@ _ALLOWED_EXT = (".pdf", ".docx")
 async def upload_document(
     file: UploadFile,
     background: BackgroundTasks,
+    principal: Principal = Depends(get_current_principal),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> DocumentOut:
@@ -55,7 +56,7 @@ async def upload_document(
             f"File exceeds the {settings.max_upload_bytes // (1024 * 1024)} MB limit.",
         )
 
-    org_id = await get_current_org_id(session)
+    org_id = principal.org_id
 
     doc = Document(
         org_id=org_id,
@@ -87,9 +88,10 @@ async def upload_document(
 
 @router.get("", response_model=DocumentListOut)
 async def list_documents(
+    principal: Principal = Depends(get_current_principal),
     session: AsyncSession = Depends(get_session),
 ) -> DocumentListOut:
-    org_id = await get_current_org_id(session)
+    org_id = principal.org_id
     docs = await session.scalars(
         select(Document).where(Document.org_id == org_id).order_by(Document.created_at.desc())
     )
@@ -99,20 +101,22 @@ async def list_documents(
 @router.get("/{document_id}", response_model=DocumentOut)
 async def get_document(
     document_id: uuid.UUID,
+    principal: Principal = Depends(get_current_principal),
     session: AsyncSession = Depends(get_session),
 ) -> DocumentOut:
-    org_id = await get_current_org_id(session)
-    doc = await _get_owned(session, document_id, org_id)
+    doc = await _get_owned(session, document_id, principal.org_id)
     return DocumentOut.model_validate(doc)
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(
     document_id: uuid.UUID,
+    principal: Principal = Depends(get_current_principal),
     session: AsyncSession = Depends(get_session),
 ) -> None:
-    org_id = await get_current_org_id(session)
-    doc = await _get_owned(session, document_id, org_id)
+    doc = await _get_owned(session, document_id, principal.org_id)
+    # Members may only delete their own org's docs (already org-scoped);
+    # admin check reserved for cross-user management in a later iteration.
     if doc.storage_key:
         storage.delete_file(doc.storage_key)
     # Chunks cascade-delete via the FK relationship.

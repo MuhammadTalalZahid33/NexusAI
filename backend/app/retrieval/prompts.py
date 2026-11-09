@@ -9,6 +9,7 @@ of the prompt-injection defense hardened further in Milestone 7.
 from __future__ import annotations
 
 from app.retrieval.retriever import RetrievedChunk
+from app.retrieval.sanitize import sanitize_passage
 
 SYSTEM_PROMPT = (
     "You are a precise question-answering assistant for an enterprise knowledge "
@@ -30,7 +31,7 @@ def build_user_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
         loc = f"page {chunk.page_number}" if chunk.page_number else "no page"
         lines.append(f"[{i}] (from {chunk.filename}, {loc})")
         lines.append("<<<")
-        lines.append(chunk.text.strip())
+        lines.append(sanitize_passage(chunk.text.strip()))
         lines.append(">>>")
         lines.append("")
     lines.append(f"QUESTION: {question}")

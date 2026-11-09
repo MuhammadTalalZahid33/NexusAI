@@ -93,6 +93,11 @@ class Settings(BaseSettings):
     # Upload limits.
     max_upload_bytes: int = 20 * 1024 * 1024  # 20 MB
 
+    # Auth / JWT.
+    jwt_secret: str = "dev-only-insecure-change-me"
+    jwt_algorithm: str = "HS256"
+    jwt_expiry_minutes: int = 60 * 24  # 24h access tokens for the demo
+
     # AI providers -- introduced in later milestones; optional for now.
     gemini_api_key: str | None = None
     llm_model: str = "gemini-2.5-flash"

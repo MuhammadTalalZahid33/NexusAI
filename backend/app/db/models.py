@@ -32,6 +32,16 @@ class DocumentStatus(str, enum.Enum):
     failed = "failed"
 
 
+class UserRole(str, enum.Enum):
+    admin = "admin"  # can manage org, users, delete any document
+    member = "member"  # can upload, query, delete own documents
+
+
+class ApiKeyScope(str, enum.Enum):
+    public = "public"  # anonymous widget: read-only Q&A
+    authenticated = "authenticated"  # host app passes a user token
+
+
 class Organization(Base, TimestampMixin):
     __tablename__ = "organizations"
 
@@ -39,6 +49,9 @@ class Organization(Base, TimestampMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
     documents: Mapped[list[Document]] = relationship(
+        back_populates="organization", cascade="all, delete-orphan"
+    )
+    users: Mapped[list[User]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"
     )
 
@@ -89,3 +102,35 @@ class Chunk(Base, TimestampMixin):
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
 
     document: Mapped[Document] = relationship(back_populates="chunks")
+
+
+class User(Base, TimestampMixin):
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[UserRole] = mapped_column(
+        SAEnum(UserRole, name="user_role"), default=UserRole.member, nullable=False
+    )
+
+    organization: Mapped[Organization] = relationship(back_populates="users")
+
+
+class ApiKey(Base, TimestampMixin):
+    __tablename__ = "api_keys"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Store only a hash of the key, never the raw key.
+    key_hash: Mapped[str] = mapped_column(String(255), nullable=False, unique=True, index=True)
+    scope: Mapped[ApiKeyScope] = mapped_column(
+        SAEnum(ApiKeyScope, name="api_key_scope"), default=ApiKeyScope.public, nullable=False
+    )
+    active: Mapped[bool] = mapped_column(default=True, nullable=False)

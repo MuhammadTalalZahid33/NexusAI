@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.graph import run_agent
+from app.auth.dependencies import Principal, get_current_principal
 from app.db.session import get_session
-from app.documents.deps import get_current_org_id
 from app.observability.metrics import REGISTRY, track_latency
 from app.retrieval.rag import answer_question
 
@@ -49,9 +49,10 @@ class AskResponse(BaseModel):
 @router.post("", response_model=AskResponse)
 async def ask(
     body: AskRequest,
+    principal: Principal = Depends(get_current_principal),
     session: AsyncSession = Depends(get_session),
 ) -> AskResponse:
-    org_id = await get_current_org_id(session)
+    org_id = principal.org_id
     REGISTRY.incr("chat.requests")
     with track_latency("chat.answer"):
         if body.agentic:
