@@ -27,8 +27,13 @@ from app.db.session import get_sessionmaker
 from app.documents.chunking import chunk_pages
 from app.documents.extraction import PageText
 from app.eval.metrics import aggregate
-from app.providers.factory import get_embedding_provider
-from app.retrieval.retriever import retrieve
+from app.providers.factory import get_embedding_provider, get_reranker_provider
+from app.retrieval.rag import (
+    STRATEGY_HYBRID,
+    STRATEGY_HYBRID_RERANK,
+    STRATEGY_VECTOR,
+    retrieve_by_strategy,
+)
 
 _ROOT = Path(__file__).resolve().parents[3]
 _DATASET = _ROOT / "eval" / "dataset.json"
@@ -99,31 +104,35 @@ async def run() -> dict:
         org_id = await _reset_eval_org(session)
         chunk_to_doc = await _ingest(session, org_id, dataset)
 
-        per_retrieved: list[list[str]] = []
-        per_relevant: list[set[str]] = []
-        substring_hits = 0
+        strategies = [STRATEGY_VECTOR, STRATEGY_HYBRID, STRATEGY_HYBRID_RERANK]
+        results_by_strategy: dict[str, dict] = {}
 
-        for q in dataset["questions"]:
-            results = await retrieve(session, org_id, q["question"], top_k=TOP_K)
-            # Map each retrieved chunk to its source document id, then dedupe to
-            # first occurrence so ranking is at the document level (a document's
-            # rank = position of its first retrieved chunk). Without dedup,
-            # multiple chunks of one doc would inflate DCG above the ideal.
-            seen: set[str] = set()
-            retrieved_docs: list[str] = []
-            for r in results:
-                d = chunk_to_doc.get(r.chunk_id, "?")
-                if d not in seen:
-                    seen.add(d)
-                    retrieved_docs.append(d)
-            per_retrieved.append(retrieved_docs)
-            per_relevant.append({q["relevant_doc"]})
-            # Substring check: did any retrieved chunk contain the gold passage?
-            if any(q["relevant_substring"] in r.text for r in results):
-                substring_hits += 1
+        for strategy in strategies:
+            per_retrieved: list[list[str]] = []
+            per_relevant: list[set[str]] = []
+            substring_hits = 0
 
-        metrics = aggregate(per_retrieved, per_relevant, k=TOP_K)
-        metrics["passage_hit_rate"] = substring_hits / len(dataset["questions"])
+            for q in dataset["questions"]:
+                results = await retrieve_by_strategy(
+                    session, org_id, q["question"], TOP_K, strategy
+                )
+                # Map retrieved chunks to source doc ids, dedupe to first
+                # occurrence -> document-level ranking (avoids DCG > ideal).
+                seen: set[str] = set()
+                retrieved_docs: list[str] = []
+                for r in results:
+                    d = chunk_to_doc.get(r.chunk_id, "?")
+                    if d not in seen:
+                        seen.add(d)
+                        retrieved_docs.append(d)
+                per_retrieved.append(retrieved_docs)
+                per_relevant.append({q["relevant_doc"]})
+                if any(q["relevant_substring"] in r.text for r in results):
+                    substring_hits += 1
+
+            metrics = aggregate(per_retrieved, per_relevant, k=TOP_K)
+            metrics["passage_hit_rate"] = substring_hits / len(dataset["questions"])
+            results_by_strategy[strategy] = metrics
 
         # cleanup
         await session.execute(delete(Chunk).where(Chunk.org_id == org_id))
@@ -132,15 +141,17 @@ async def run() -> dict:
         await session.commit()
 
     emb_impl = type(get_embedding_provider()).__name__
+    rerank_impl = type(get_reranker_provider()).__name__
     report = {
         "timestamp": datetime.now(UTC).isoformat(),
         "embedding_provider": emb_impl,
+        "reranker_provider": rerank_impl,
         "top_k": TOP_K,
         "num_questions": len(dataset["questions"]),
-        "metrics": metrics,
+        "metrics_by_strategy": results_by_strategy,
     }
     _REPORTS.mkdir(parents=True, exist_ok=True)
-    out = _REPORTS / f"baseline_{emb_impl}.json"
+    out = _REPORTS / f"compare_{emb_impl}.json"
     out.write_text(json.dumps(report, indent=2), encoding="utf-8")
     return report
 

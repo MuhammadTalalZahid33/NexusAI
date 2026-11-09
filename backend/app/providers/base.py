@@ -12,6 +12,18 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 
 
+class RerankerProvider(ABC):
+    """Re-scores (query, document) pairs for precise ranking."""
+
+    @abstractmethod
+    async def rerank(self, query: str, documents: list[str], top_k: int) -> list[tuple[int, float]]:
+        """Return [(original_index, relevance_score), ...] sorted best-first.
+
+        Indices refer to positions in the input `documents` list, so callers
+        can map results back to their own objects.
+        """
+
+
 class EmbeddingProvider(ABC):
     """Turns text into dense vectors for semantic search."""
 

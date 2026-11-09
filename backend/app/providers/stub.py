@@ -14,7 +14,7 @@ import math
 import re
 from collections.abc import AsyncIterator
 
-from app.providers.base import EmbeddingProvider, LLMProvider
+from app.providers.base import EmbeddingProvider, LLMProvider, RerankerProvider
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
@@ -37,6 +37,23 @@ class StubEmbeddingProvider(EmbeddingProvider):
 
     async def embed_query(self, text: str) -> list[float]:
         return self._embed(text)
+
+
+class StubRerankerProvider(RerankerProvider):
+    """Token-overlap (Jaccard) reranker -- deterministic, offline."""
+
+    async def rerank(
+        self, query: str, documents: list[str], top_k: int
+    ) -> list[tuple[int, float]]:
+        q = set(_TOKEN_RE.findall(query.lower()))
+        scored: list[tuple[int, float]] = []
+        for i, doc in enumerate(documents):
+            d = set(_TOKEN_RE.findall(doc.lower()))
+            overlap = len(q & d)
+            union = len(q | d) or 1
+            scored.append((i, overlap / union))
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return scored[:top_k]
 
 
 class StubLLMProvider(LLMProvider):

@@ -14,10 +14,16 @@ from dataclasses import dataclass, field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.providers.factory import get_llm_provider
+from app.retrieval.hybrid import hybrid_retrieve
 from app.retrieval.prompts import SYSTEM_PROMPT, build_user_prompt
 from app.retrieval.retriever import RetrievedChunk, retrieve
 
 ABSTAIN_TEXT = "I don't have enough information to answer that."
+
+# Retrieval strategies, selectable per request + used by the eval harness.
+STRATEGY_VECTOR = "vector"
+STRATEGY_HYBRID = "hybrid"
+STRATEGY_HYBRID_RERANK = "hybrid_rerank"
 _CITATION_RE = re.compile(r"\[(\d+)\]")
 
 
@@ -39,13 +45,31 @@ class RagResult:
     retrieved: list[RetrievedChunk] = field(default_factory=list)
 
 
+async def retrieve_by_strategy(
+    session: AsyncSession,
+    org_id: uuid.UUID,
+    question: str,
+    top_k: int,
+    strategy: str,
+) -> list[RetrievedChunk]:
+    """Dispatch to the selected retrieval strategy."""
+    if strategy == STRATEGY_VECTOR:
+        return await retrieve(session, org_id, question, top_k=top_k)
+    if strategy == STRATEGY_HYBRID:
+        return await hybrid_retrieve(session, org_id, question, top_k=top_k, use_rerank=False)
+    if strategy == STRATEGY_HYBRID_RERANK:
+        return await hybrid_retrieve(session, org_id, question, top_k=top_k, use_rerank=True)
+    raise ValueError(f"Unknown retrieval strategy: {strategy}")
+
+
 async def answer_question(
     session: AsyncSession,
     org_id: uuid.UUID,
     question: str,
     top_k: int = 5,
+    strategy: str = STRATEGY_HYBRID_RERANK,
 ) -> RagResult:
-    chunks = await retrieve(session, org_id, question, top_k=top_k)
+    chunks = await retrieve_by_strategy(session, org_id, question, top_k, strategy)
 
     # No evidence at all -> abstain immediately.
     if not chunks:

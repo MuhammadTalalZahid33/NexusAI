@@ -1,0 +1,27 @@
+{
+  "timestamp": "2026-11-09T19:58:05.526801+00:00",
+  "embedding_provider": "StubEmbeddingProvider",
+  "reranker_provider": "StubRerankerProvider",
+  "top_k": 5,
+  "num_questions": 10,
+  "metrics_by_strategy": {
+    "vector": {
+      "recall@5": 1.0,
+      "mrr": 0.9333333333333333,
+      "ndcg@5": 0.95,
+      "passage_hit_rate": 1.0
+    },
+    "hybrid": {
+      "recall@5": 1.0,
+      "mrr": 0.9333333333333333,
+      "ndcg@5": 0.95,
+      "passage_hit_rate": 1.0
+    },
+    "hybrid_rerank": {
+      "recall@5": 1.0,
+      "mrr": 0.95,
+      "ndcg@5": 0.9630929753571458,
+      "passage_hit_rate": 1.0
+    }
+  }
+}

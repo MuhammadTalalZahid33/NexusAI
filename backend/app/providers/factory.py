@@ -15,8 +15,12 @@ from functools import lru_cache
 from app.config import Settings, get_settings
 from app.db.models import EMBEDDING_DIM
 from app.logging_config import get_logger
-from app.providers.base import EmbeddingProvider, LLMProvider
-from app.providers.stub import StubEmbeddingProvider, StubLLMProvider
+from app.providers.base import EmbeddingProvider, LLMProvider, RerankerProvider
+from app.providers.stub import (
+    StubEmbeddingProvider,
+    StubLLMProvider,
+    StubRerankerProvider,
+)
 
 log = get_logger(__name__)
 
@@ -51,3 +55,15 @@ def get_llm_provider() -> LLMProvider:
         return GeminiLLMProvider(api_key=settings.gemini_api_key or "", model=settings.llm_model)
     log.info("providers.llm", impl="stub")
     return StubLLMProvider()
+
+
+@lru_cache
+def get_reranker_provider() -> RerankerProvider:
+    settings = get_settings()
+    if settings.cohere_api_key:
+        from app.providers.cohere import CohereRerankerProvider
+
+        log.info("providers.reranker", impl="cohere")
+        return CohereRerankerProvider(api_key=settings.cohere_api_key)
+    log.info("providers.reranker", impl="stub")
+    return StubRerankerProvider()

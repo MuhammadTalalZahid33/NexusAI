@@ -13,7 +13,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Chunk, Document
@@ -67,6 +67,49 @@ async def retrieve(
             page_number=row.page_number,
             text=row.text,
             score=1.0 - float(row.distance),
+        )
+        for row in rows
+    ]
+
+
+async def keyword_retrieve(
+    session: AsyncSession,
+    org_id: uuid.UUID,
+    query: str,
+    top_k: int = 20,
+) -> list[RetrievedChunk]:
+    """Full-text keyword search via Postgres tsvector + ts_rank, org-scoped.
+
+    Complements vector search: great at exact terms, names, numbers, and rare
+    jargon that embeddings sometimes blur. Uses websearch_to_tsquery so natural
+    queries ("payment terms") work without special syntax.
+    """
+    tsquery = func.websearch_to_tsquery("english", query)
+    rank = func.ts_rank(text("chunks.tsv"), tsquery).label("rank")
+    stmt = (
+        select(
+            Chunk.id,
+            Chunk.document_id,
+            Document.filename,
+            Chunk.page_number,
+            Chunk.text,
+            rank,
+        )
+        .join(Document, Document.id == Chunk.document_id)
+        .where(Chunk.org_id == org_id)
+        .where(text("chunks.tsv @@ websearch_to_tsquery('english', :q)"))
+        .order_by(rank.desc())
+        .limit(top_k)
+    ).params(q=query)
+    rows = (await session.execute(stmt)).all()
+    return [
+        RetrievedChunk(
+            chunk_id=row.id,
+            document_id=row.document_id,
+            filename=row.filename,
+            page_number=row.page_number,
+            text=row.text,
+            score=float(row.rank),
         )
         for row in rows
     ]

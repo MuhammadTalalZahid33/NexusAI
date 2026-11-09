@@ -18,6 +18,11 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     top_k: int = Field(default=5, ge=1, le=20)
+    strategy: str = Field(
+        default="hybrid_rerank",
+        pattern="^(vector|hybrid|hybrid_rerank)$",
+        description="Retrieval strategy: vector | hybrid | hybrid_rerank",
+    )
 
 
 class CitationOut(BaseModel):
@@ -41,7 +46,9 @@ async def ask(
     session: AsyncSession = Depends(get_session),
 ) -> AskResponse:
     org_id = await get_current_org_id(session)
-    result = await answer_question(session, org_id, body.question, top_k=body.top_k)
+    result = await answer_question(
+        session, org_id, body.question, top_k=body.top_k, strategy=body.strategy
+    )
     return AskResponse(
         answer=result.answer,
         abstained=result.abstained,
