@@ -15,7 +15,7 @@ def test_settings() -> Settings:
     return Settings(
         app_env=AppEnv.test,
         log_level=LogLevel.warning,
-        cors_origins=["http://testserver"],
+        cors_origins="http://testserver",
     )
 
 
