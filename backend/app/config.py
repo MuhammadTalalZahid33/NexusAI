@@ -11,6 +11,7 @@ from __future__ import annotations
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -69,22 +70,28 @@ class Settings(BaseSettings):
     def async_database_url(self) -> str:
         """Return the DATABASE_URL normalized to the asyncpg driver.
 
-        Neon/most providers hand out a `postgresql://...` URL. SQLAlchemy's
-        async engine needs the `postgresql+asyncpg://` scheme. We also drop a
-        `sslmode=require` query param if present, because asyncpg does not
-        accept it as a URL arg (SSL is handled via connect_args instead).
+        Neon hands out a `postgresql://...?sslmode=require&channel_binding=require`
+        URL. asyncpg does not accept libpq-style query params (sslmode,
+        channel_binding) in the URL -- SSL is handled via connect_args instead.
+        So we switch the driver scheme and drop the entire query string, using a
+        proper URL parser rather than brittle string replacement.
         """
         if not self.database_url:
             raise RuntimeError("DATABASE_URL is not configured.")
-        url = self.database_url
-        if url.startswith("postgresql://"):
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        elif url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-        # Strip sslmode (asyncpg uses connect_args for SSL, not the URL).
-        for sep in ("?sslmode=require", "&sslmode=require"):
-            url = url.replace(sep, "")
-        return url
+
+        parsed = urlsplit(self.database_url)
+        scheme = parsed.scheme
+        if scheme in ("postgres", "postgresql"):
+            scheme = "postgresql+asyncpg"
+        # Drop the query string entirely (libpq params are not valid for asyncpg).
+        return urlunsplit((scheme, parsed.netloc, parsed.path, "", ""))
+
+    # Chunking strategy (configurable). Sizes are in tokens.
+    chunk_size_tokens: int = 400
+    chunk_overlap_tokens: int = 60
+
+    # Upload limits.
+    max_upload_bytes: int = 20 * 1024 * 1024  # 20 MB
 
     # AI providers -- introduced in later milestones; optional for now.
     gemini_api_key: str | None = None

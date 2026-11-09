@@ -38,7 +38,7 @@ class Organization(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = uuid_pk()
     name: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    documents: Mapped[list["Document"]] = relationship(
+    documents: Mapped[list[Document]] = relationship(
         back_populates="organization", cascade="all, delete-orphan"
     )
 
@@ -53,6 +53,7 @@ class Document(Base, TimestampMixin):
     filename: Mapped[str] = mapped_column(String(512), nullable=False)
     mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    storage_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     status: Mapped[DocumentStatus] = mapped_column(
         SAEnum(DocumentStatus, name="document_status"),
         default=DocumentStatus.pending,
@@ -63,8 +64,8 @@ class Document(Base, TimestampMixin):
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     chunk_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    organization: Mapped["Organization"] = relationship(back_populates="documents")
-    chunks: Mapped[list["Chunk"]] = relationship(
+    organization: Mapped[Organization] = relationship(back_populates="documents")
+    chunks: Mapped[list[Chunk]] = relationship(
         back_populates="document", cascade="all, delete-orphan"
     )
 
@@ -87,4 +88,4 @@ class Chunk(Base, TimestampMixin):
     # Populated in Milestone 3.
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
 
-    document: Mapped["Document"] = relationship(back_populates="chunks")
+    document: Mapped[Document] = relationship(back_populates="chunks")

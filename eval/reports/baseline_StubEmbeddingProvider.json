@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-11-09T18:19:48.528512+00:00",
+  "embedding_provider": "StubEmbeddingProvider",
+  "top_k": 5,
+  "num_questions": 10,
+  "metrics": {
+    "recall@5": 1.0,
+    "mrr": 0.9333333333333333,
+    "ndcg@5": 0.95,
+    "passage_hit_rate": 1.0
+  }
+}

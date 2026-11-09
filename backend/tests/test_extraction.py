@@ -26,7 +26,8 @@ def _make_docx(paragraphs: list[str]) -> bytes:
 
 def test_extract_docx_joins_paragraphs() -> None:
     data = _make_docx(["Hello world.", "Second paragraph."])
-    pages = extract_pages(data, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "x.docx")
+    docx_mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    pages = extract_pages(data, docx_mime, "x.docx")
     assert len(pages) == 1
     assert pages[0].page_number is None
     assert "Hello world." in pages[0].text

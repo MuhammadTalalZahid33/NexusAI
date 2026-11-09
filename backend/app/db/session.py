@@ -6,6 +6,7 @@ that yields a session per request and ensures it is closed afterwards.
 
 from __future__ import annotations
 
+import ssl
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -26,11 +27,14 @@ def init_engine(settings: Settings | None = None) -> AsyncEngine:
     global _engine, _sessionmaker
     if _engine is None:
         settings = settings or get_settings()
+        # Neon requires TLS. asyncpg accepts an ssl.SSLContext (or "require"
+        # in recent versions). A default client context works with Neon.
+        ssl_context = ssl.create_default_context()
         _engine = create_async_engine(
             settings.async_database_url,
             echo=False,
             pool_pre_ping=True,  # detect dropped connections (Neon scales to zero)
-            connect_args={"ssl": True},  # Neon requires SSL
+            connect_args={"ssl": ssl_context},
         )
         _sessionmaker = async_sessionmaker(_engine, expire_on_commit=False)
     return _engine

@@ -1,0 +1,32 @@
+{
+  "description": "Seed evaluation dataset for Nexus AI retrieval. Small by design (Milestone 3 baseline); expanded to 100-200 examples in Milestone 6. Each document is synthetic plain text. Each question's `relevant_doc` + `relevant_substring` identify the chunk that should be retrieved.",
+  "documents": [
+    {
+      "id": "hr_policy",
+      "filename": "hr_policy.txt",
+      "text": "Nexus Corp Employee Handbook.\n\nAnnual Leave: Full-time employees are entitled to 25 days of paid annual leave per calendar year. Leave does not carry over beyond March 31 of the following year.\n\nSick Leave: Employees receive 10 days of paid sick leave annually. A medical certificate is required for absences longer than three consecutive days.\n\nRemote Work: Employees may work remotely up to three days per week with manager approval. Core collaboration hours are 10am to 3pm local time.\n\nExpense Reimbursement: Business expenses must be submitted within 30 days with receipts. Reimbursement is processed within two payroll cycles."
+    },
+    {
+      "id": "security_policy",
+      "filename": "security_policy.txt",
+      "text": "Nexus Corp Information Security Policy.\n\nPasswords: Passwords must be at least 12 characters and include letters, numbers, and symbols. Passwords expire every 90 days.\n\nMulti-Factor Authentication: MFA is mandatory for all systems that access customer data.\n\nData Classification: Data is classified as Public, Internal, Confidential, or Restricted. Restricted data must be encrypted at rest and in transit.\n\nIncident Reporting: Suspected security incidents must be reported to the security team within one hour of discovery."
+    },
+    {
+      "id": "product_faq",
+      "filename": "product_faq.txt",
+      "text": "Nexus Analytics Product FAQ.\n\nData Retention: Analytics data is retained for 24 months by default. Enterprise customers can configure retention up to 7 years.\n\nIntegrations: The platform integrates with Postgres, Snowflake, and BigQuery. A REST API is available for custom integrations.\n\nSupport: Standard support responds within 24 hours. Premium support offers a 2-hour response SLA and a dedicated account manager.\n\nPricing: Billing is per seat per month. Annual contracts receive a 15 percent discount."
+    }
+  ],
+  "questions": [
+    { "question": "How many days of paid annual leave do full-time employees get?", "relevant_doc": "hr_policy", "relevant_substring": "25 days of paid annual leave" },
+    { "question": "How long do I have to submit business expenses?", "relevant_doc": "hr_policy", "relevant_substring": "within 30 days" },
+    { "question": "How many days can employees work remotely each week?", "relevant_doc": "hr_policy", "relevant_substring": "up to three days per week" },
+    { "question": "What are the password requirements?", "relevant_doc": "security_policy", "relevant_substring": "at least 12 characters" },
+    { "question": "When is multi-factor authentication required?", "relevant_doc": "security_policy", "relevant_substring": "MFA is mandatory" },
+    { "question": "How quickly must security incidents be reported?", "relevant_doc": "security_policy", "relevant_substring": "within one hour" },
+    { "question": "How long is analytics data retained by default?", "relevant_doc": "product_faq", "relevant_substring": "retained for 24 months" },
+    { "question": "Which data warehouses does the platform integrate with?", "relevant_doc": "product_faq", "relevant_substring": "Postgres, Snowflake, and BigQuery" },
+    { "question": "What is the premium support response time?", "relevant_doc": "product_faq", "relevant_substring": "2-hour response SLA" },
+    { "question": "What discount do annual contracts receive?", "relevant_doc": "product_faq", "relevant_substring": "15 percent discount" }
+  ]
+}
