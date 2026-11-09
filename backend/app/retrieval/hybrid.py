@@ -13,7 +13,6 @@ evaluation harness can compare vector-only vs hybrid vs hybrid+rerank.
 
 from __future__ import annotations
 
-import asyncio
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,10 +35,11 @@ async def hybrid_retrieve(
     *,
     use_rerank: bool = False,
 ) -> list[RetrievedChunk]:
-    vector_hits, keyword_hits = await asyncio.gather(
-        retrieve(session, org_id, query, top_k=CANDIDATE_POOL),
-        keyword_retrieve(session, org_id, query, top_k=CANDIDATE_POOL),
-    )
+    # Run sequentially: a single AsyncSession cannot run concurrent operations
+    # (they share one DB connection), so asyncio.gather would error. The cost is
+    # negligible -- both are fast indexed lookups.
+    vector_hits = await retrieve(session, org_id, query, top_k=CANDIDATE_POOL)
+    keyword_hits = await keyword_retrieve(session, org_id, query, top_k=CANDIDATE_POOL)
 
     fused = reciprocal_rank_fusion([vector_hits, keyword_hits])
 

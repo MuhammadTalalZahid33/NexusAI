@@ -20,6 +20,7 @@ dependencies = [
     "tiktoken>=0.8",
     "google-genai>=1.0",
     "cohere>=5.13",
+    "langgraph>=0.2.50",
 ]
 
 [project.optional-dependencies]

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agent.graph import run_agent
 from app.db.session import get_session
 from app.documents.deps import get_current_org_id
 from app.retrieval.rag import answer_question
@@ -22,6 +23,10 @@ class AskRequest(BaseModel):
         default="hybrid_rerank",
         pattern="^(vector|hybrid|hybrid_rerank)$",
         description="Retrieval strategy: vector | hybrid | hybrid_rerank",
+    )
+    agentic: bool = Field(
+        default=False,
+        description="Use the bounded LangGraph agentic workflow instead of single-shot RAG.",
     )
 
 
@@ -46,9 +51,12 @@ async def ask(
     session: AsyncSession = Depends(get_session),
 ) -> AskResponse:
     org_id = await get_current_org_id(session)
-    result = await answer_question(
-        session, org_id, body.question, top_k=body.top_k, strategy=body.strategy
-    )
+    if body.agentic:
+        result = await run_agent(session, org_id, body.question, top_k=body.top_k)
+    else:
+        result = await answer_question(
+            session, org_id, body.question, top_k=body.top_k, strategy=body.strategy
+        )
     return AskResponse(
         answer=result.answer,
         abstained=result.abstained,
