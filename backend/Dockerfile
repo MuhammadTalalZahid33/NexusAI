@@ -15,15 +15,19 @@ WORKDIR /app
 COPY pyproject.toml ./
 RUN pip install --upgrade pip && pip install .
 
-# Copy the application code.
+# Copy the application code + migrations.
 COPY app ./app
+COPY migrations ./migrations
+COPY alembic.ini ./alembic.ini
+COPY entrypoint.sh ./entrypoint.sh
 
 # Create a non-root user to run the app.
-RUN useradd --create-home --uid 1000 appuser
+RUN useradd --create-home --uid 1000 appuser \
+    && chmod +x entrypoint.sh \
+    && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000
 
-# One worker is fine for dev. Production scaling (gunicorn/uvicorn workers)
-# comes in the deployment milestone.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Entrypoint runs DB migrations, then starts the server.
+CMD ["./entrypoint.sh"]

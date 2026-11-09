@@ -58,9 +58,7 @@ async def ingest_document(
             )
 
             # Clear any prior chunks (idempotent re-runs / retries).
-            existing = await session.scalars(
-                select(Chunk).where(Chunk.document_id == doc.id)
-            )
+            existing = await session.scalars(select(Chunk).where(Chunk.document_id == doc.id))
             for c in existing:
                 await session.delete(c)
 

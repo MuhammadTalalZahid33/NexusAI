@@ -41,8 +41,7 @@ def extract_pages(data: bytes, mime_type: str, filename: str) -> list[PageText]:
     if mime_type == "application/pdf" or filename.lower().endswith(".pdf"):
         pages = _extract_pdf(data)
     elif (
-        mime_type
-        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         or filename.lower().endswith(".docx")
     ):
         pages = _extract_docx(data)

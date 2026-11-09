@@ -68,9 +68,7 @@ def _cleanup(emails: list[str]) -> None:
             for email in emails:
                 user = await s.scalar(select(User).where(User.email == email))
                 if user:
-                    await s.execute(
-                        delete(Organization).where(Organization.id == user.org_id)
-                    )
+                    await s.execute(delete(Organization).where(Organization.id == user.org_id))
             await s.commit()
         await engine.dispose()
 
@@ -113,15 +111,11 @@ def test_cross_tenant_document_isolation(client: TestClient) -> None:
         assert all(d["id"] != doc_id for d in list_b.json()["documents"])
 
         # Org B must get 404 (not 403 -> no existence leak) fetching A's doc.
-        get_b = client.get(
-            f"/documents/{doc_id}", headers={"Authorization": f"Bearer {token_b}"}
-        )
+        get_b = client.get(f"/documents/{doc_id}", headers={"Authorization": f"Bearer {token_b}"})
         assert get_b.status_code == 404
 
         # Org A CAN see its own document.
-        get_a = client.get(
-            f"/documents/{doc_id}", headers={"Authorization": f"Bearer {token_a}"}
-        )
+        get_a = client.get(f"/documents/{doc_id}", headers={"Authorization": f"Bearer {token_a}"})
         assert get_a.status_code == 200
     finally:
         _cleanup([email_a, email_b])

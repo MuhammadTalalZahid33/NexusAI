@@ -58,8 +58,7 @@ def aggregate(
         for r, rel in zip(per_query_retrieved, per_query_relevant, strict=True)
     ]
     ndcgs = [
-        ndcg_at_k(r, rel, k)
-        for r, rel in zip(per_query_retrieved, per_query_relevant, strict=True)
+        ndcg_at_k(r, rel, k) for r, rel in zip(per_query_retrieved, per_query_relevant, strict=True)
     ]
     return {
         f"recall@{k}": sum(recalls) / n,

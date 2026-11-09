@@ -1,9 +1,9 @@
-# Docker Compose for local development.
+# Docker Compose for the full Nexus AI stack (local / demo).
 #
-# Milestone 1 runs only the backend. We use a managed Postgres (Neon) rather
-# than a local Postgres container, which keeps resource usage low on modest
-# machines. If you later want a fully-local DB, we can add a `db` service
-# with the pgvector image -- that is a documented option, not the default.
+# Uses a managed Postgres (Neon) via DATABASE_URL rather than a local DB
+# container, keeping resource use low. If you prefer a fully-local DB, add a
+# `db` service using the `pgvector/pgvector:pg16` image and point DATABASE_URL
+# at it -- a documented option, not the default.
 
 services:
   backend:
@@ -14,8 +14,7 @@ services:
     env_file:
       - .env
     environment:
-      # Ensure the container binds correctly regardless of .env.
-      APP_ENV: ${APP_ENV:-development}
+      APP_ENV: ${APP_ENV:-production}
     ports:
       - "8000:8000"
     healthcheck:
@@ -23,5 +22,20 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Point the built SPA at the backend. For a real deploy, set this to
+        # the public backend URL.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    image: nexus-ai-frontend:dev
+    container_name: nexus-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
     restart: unless-stopped

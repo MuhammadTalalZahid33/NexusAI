@@ -13,10 +13,10 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.config import get_settings
+from app.db import models  # noqa: F401  (import for side effect: registers models)
 
 # Import Base + all models so autogenerate sees every table.
 from app.db.base import Base
-from app.db import models  # noqa: F401  (import for side effect: registers models)
 
 config = context.config
 

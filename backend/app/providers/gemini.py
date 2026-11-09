@@ -23,9 +23,7 @@ def _client(api_key: str):
     try:
         from google import genai  # type: ignore
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError(
-            "google-genai is not installed. Run: pip install google-genai"
-        ) from exc
+        raise RuntimeError("google-genai is not installed. Run: pip install google-genai") from exc
     return genai.Client(api_key=api_key)
 
 
@@ -91,9 +89,7 @@ class GeminiLLMProvider(LLMProvider):
                 stream = self._client.models.generate_content_stream(
                     model=self._model,
                     contents=user,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system, temperature=0.2
-                    ),
+                    config=types.GenerateContentConfig(system_instruction=system, temperature=0.2),
                 )
                 for chunk in stream:
                     if chunk.text:

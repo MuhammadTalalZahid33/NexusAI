@@ -23,14 +23,10 @@ class CohereRerankerProvider(RerankerProvider):
         self._client = cohere.ClientV2(api_key=api_key)
         self._model = model
 
-    async def rerank(
-        self, query: str, documents: list[str], top_k: int
-    ) -> list[tuple[int, float]]:
+    async def rerank(self, query: str, documents: list[str], top_k: int) -> list[tuple[int, float]]:
         return await asyncio.to_thread(self._rerank_sync, query, documents, top_k)
 
-    def _rerank_sync(
-        self, query: str, documents: list[str], top_k: int
-    ) -> list[tuple[int, float]]:
+    def _rerank_sync(self, query: str, documents: list[str], top_k: int) -> list[tuple[int, float]]:
         resp = self._client.rerank(
             model=self._model,
             query=query,

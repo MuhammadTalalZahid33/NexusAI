@@ -25,7 +25,7 @@ def test_ndcg_at_k_perfect_is_one() -> None:
 
 def test_ndcg_rewards_higher_rank() -> None:
     high = ndcg_at_k(["a", "x"], {"a"}, 2)  # relevant at rank 1
-    low = ndcg_at_k(["x", "a"], {"a"}, 2)   # relevant at rank 2
+    low = ndcg_at_k(["x", "a"], {"a"}, 2)  # relevant at rank 2
     assert high > low
     assert abs(low - (1.0 / math.log2(3))) < 1e-9
 

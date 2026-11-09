@@ -9,6 +9,7 @@ built-in full-text engine, complementing pgvector semantic search. A GIN index
 keeps it fast. The column is STORED + generated from `text`, so it stays in
 sync automatically with no application code.
 """
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -29,8 +30,7 @@ def upgrade() -> None:
     op.execute("CREATE INDEX ix_chunks_tsv ON chunks USING GIN (tsv)")
     # ANN index for vector search (cosine). Built now that data patterns exist.
     op.execute(
-        "CREATE INDEX ix_chunks_embedding ON chunks "
-        "USING hnsw (embedding vector_cosine_ops)"
+        "CREATE INDEX ix_chunks_embedding ON chunks USING hnsw (embedding vector_cosine_ops)"
     )
 
 

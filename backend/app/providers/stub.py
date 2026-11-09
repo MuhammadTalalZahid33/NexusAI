@@ -42,9 +42,7 @@ class StubEmbeddingProvider(EmbeddingProvider):
 class StubRerankerProvider(RerankerProvider):
     """Token-overlap (Jaccard) reranker -- deterministic, offline."""
 
-    async def rerank(
-        self, query: str, documents: list[str], top_k: int
-    ) -> list[tuple[int, float]]:
+    async def rerank(self, query: str, documents: list[str], top_k: int) -> list[tuple[int, float]]:
         q = set(_TOKEN_RE.findall(query.lower()))
         scored: list[tuple[int, float]] = []
         for i, doc in enumerate(documents):
